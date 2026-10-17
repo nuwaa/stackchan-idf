@@ -49,6 +49,8 @@ LINE_KINDS = [
     ("disconnect", "客户端断开连接", "切断"),
     ("tools", "客户端设备支持的工具数量", "機体ツール"),
     ("watchdog", "強制送信", "番犬"),
+    ("lang", "中国語を検出", "中国語"),
+    ("lang", "中国語の返答を差し戻す", "中国語差戻"),
     ("uncaught", "未捕捉例外", "例外"),
     ("error", "-ERROR-", "ERROR"),
     ("warn", "-WARNING-", "WARN"),
@@ -237,7 +239,7 @@ h1{font-size:16px;margin:0}
 #log{margin:0 16px 16px;background:#0b0d11;border:1px solid #262a33;border-radius:8px;height:60vh;overflow:auto;font:12.5px/1.45 ui-monospace,Menlo,monospace;padding:6px 8px}
 .l{white-space:pre-wrap;word-break:break-all}.l .ts{color:var(--mut)}.l .lb{display:inline-block;min-width:68px;color:var(--acc)}
 .l.asr .lb{color:#e3b341}.l.tts_sent .lb,.l.tts_first .lb{color:#3fb950}.l.tool .lb,.l.tool_req .lb,.l.tool_ok .lb{color:#bc8cff}
-.l.error .lb,.l.uncaught .lb,.l.disconnect .lb{color:var(--bad)}.l.warn .lb,.l.abort .lb,.l.watchdog .lb{color:var(--warn)}
+.l.error .lb,.l.uncaught .lb,.l.disconnect .lb{color:var(--bad)}.l.warn .lb,.l.abort .lb,.l.watchdog .lb,.l.lang .lb{color:var(--warn)}
 .l.turn_end,.l.tts_stop,.l.listen,.l.tts_gen{color:var(--mut)}
 .strata{font:12px ui-monospace,monospace;color:var(--mut);padding:0 16px 10px;white-space:pre-wrap}
 label{color:var(--mut);font-size:12px;margin-left:auto}
@@ -269,6 +271,7 @@ async function status(){
   h+=card('最後の音声認識',age(L.asr),L.asr>300?'warn':'');
   h+=card('最後の発話',age(L.tts_sent),'');
   h+=card('最後のエラー',age(L.error??L.uncaught),(L.error??L.uncaught)<600?'bad':'');
+  h+=card('中国語検出',age(L.lang),L.lang<600?'warn':'');
   $('#cards').innerHTML=h;
   const t=s.turn||{};const st={idle:'待機',listening:'聞き取り中',thinking:'考え中',speaking:'話し中',disconnected:'切断'}[t.state]||t.state;
   const stuck=(t.state==='thinking'||t.state==='speaking')&&t.age_s>40;
