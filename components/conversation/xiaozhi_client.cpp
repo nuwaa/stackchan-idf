@@ -299,6 +299,12 @@ public:
         doc["type"] = "abort";
         doc["reason"] = "wake_word_detected";
         if (!session_id_.empty()) doc["session_id"] = session_id_;
+        // Resync locally too: if the server never answers with `tts stop`
+        // (e.g. its reply pipeline threw), push_audio() would keep dropping
+        // mic chunks forever while the task believes it is listening.
+        if (state_.load(std::memory_order_relaxed) == ConversationState::Speaking) {
+            set_state(ConversationState::Listening);
+        }
         std::lock_guard lock{send_mutex_};
         return send_json_locked(doc) ? tl::expected<void, ConversationError>{}
                                      : tl::unexpected{ConversationError::SendFailed};

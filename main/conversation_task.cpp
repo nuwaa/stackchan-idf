@@ -565,6 +565,10 @@ private:
         case Local::Thinking:
             if (now_ms() - thinking_since_ms_ > kThinkingTimeoutMs) {
                 ESP_LOGW(kTag, "thinking timed out, returning to listening");
+                // Tell the backend to drop the stalled turn and resync its
+                // (and the client's) speaking state, otherwise the server may
+                // keep us marked as speaking and ignore the mic for good.
+                (void)client_->cancel_response();
                 enter_listening();
             } else {
                 vTaskDelay(pdMS_TO_TICKS(10));
@@ -580,6 +584,7 @@ private:
             if (now_ms() - playback_start_ms_ > kSpeakingTimeoutMs) {
                 ESP_LOGW(kTag, "speaking timed out (%u ms), forcing finish",
                          static_cast<unsigned>(now_ms() - playback_start_ms_));
+                (void)client_->cancel_response();
                 finish_speaking();
             } else {
                 service_playback();
