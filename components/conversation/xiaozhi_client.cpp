@@ -638,6 +638,10 @@ private:
         // LLM can drive our tools (expression, head pose, time, memory,
         // timer, ask_agent) just like OpenAI / Gemini do natively.
         doc["features"]["mcp"] = true;
+        // Without this the server pushes `llm.emotion = "happy"` at the start of
+        // every reply (its default when the text has no emoji), which overrides
+        // whatever set_expression just chose. We drive the face via MCP tools.
+        doc["features"]["emoji"] = false;
         // stackchan-idf extension (not in the official protocol): carry the
         // firmware's system prompt so our forked server can use it as this
         // connection's persona instead of its config.yaml prompt. The
