@@ -88,7 +88,7 @@ class LogTailer(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True)
         self.ring = collections.deque(maxlen=LOG_RING)
-        self.subs: set[collections.deque] = set()
+        self.subs: list[collections.deque] = []  # deque はハッシュ不可なので list
         self.lock = threading.Lock()
         self.last = {}  # kind -> epoch (状態カード用)
         self.turn = {"state": "idle", "since": None, "last_user": "", "last_reply": ""}
@@ -137,12 +137,12 @@ class LogTailer(threading.Thread):
     def subscribe(self):
         q = collections.deque(maxlen=500)
         with self.lock:
-            self.subs.add(q)
+            self.subs.append(q)
         return q
 
     def unsubscribe(self, q):
         with self.lock:
-            self.subs.discard(q)
+            self.subs = [s for s in self.subs if s is not q]
 
     def recent(self, n):
         with self.lock:
@@ -306,6 +306,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(data)
+
+    def do_HEAD(self):
+        self._send(200, "")
 
     def do_GET(self):
         u = urlparse(self.path)
