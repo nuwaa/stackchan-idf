@@ -244,6 +244,7 @@ OpenAI / Gemini の API キーはビルドに埋め込まず、BLE / Wi-Fi 設�
 ├── tools/                  apply-m5-patches.sh, monitor_log.py, settings.html,
 │                           avatar_dsl/ (コンパイラ + WASM 連携),
 │                           stackchan-agent/ (ask_agent の委譲先サーバー, Bun + Claude Code)
+│                           xiaozhi-mon/ (会話サーバーの状態とログをブラウザで見るモニター)
 ├── assets/                 .avdsl ソース (default_face, omega_mouth, aokko_face)
 ├── partitions.csv          OTA 配置 (ota_0 / ota_1 / nvs / storage)
 ├── sdkconfig.defaults*     共通 + ボード別 (.cores3 / .atoms3r / .atoms3 / .stopwatch)
