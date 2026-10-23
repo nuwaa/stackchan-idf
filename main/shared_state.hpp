@@ -242,6 +242,9 @@ public:
         // task rebases its dB window on the tracked ambient noise level;
         // when false, a fixed floor is used. Live — read every mic frame.
         std::atomic<bool> agc_enabled{true};
+        // Vowel-shaped mouth (formant analysis) vs plain loudness meter.
+        // Live — read every mic frame.
+        std::atomic<bool> vowel_enabled{true};
     };
     MicLip mic_lip;
 

@@ -227,6 +227,10 @@ struct DeviceConfig {
     // When false, a fixed floor is used (legacy behaviour). Live atomic
     // — takes effect on the next mic frame without reboot.
     bool mic_lip_agc_enabled = true;
+    // When true (default), main/mic_lip_sync_task shapes the mouth from the
+    // detected vowel (formant analysis: open / form per あいうえお); when
+    // false, the mouth height just follows the loudness as before.
+    bool mic_lip_vowel_enabled = true;
     // Modulate the nekomimi LED brightness with SharedState::mouth_open so the
     // ears pulse along with whatever's driving the avatar's mouth (mic
     // lip-sync, jtts babble, conversation playback, …). Off by default —

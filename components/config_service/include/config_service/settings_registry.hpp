@@ -73,7 +73,7 @@ struct SettingDescriptor {
     void (*num_set)(DeviceConfig&, std::uint32_t);
 };
 
-inline constexpr std::size_t kSettingCount = 58;
+inline constexpr std::size_t kSettingCount = 59;
 
 // The full table, one row per DeviceConfig field. Order is stable but not a
 // contract (lookup is by id / nvs_key).

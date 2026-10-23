@@ -323,6 +323,13 @@ static const ble_uuid128_t kLipSyncModeUuid = BLE_UUID128_INIT(
 static const ble_uuid128_t kMicLipAgcUuid = BLE_UUID128_INIT(
     0x00, 0x1f, 0x4b, 0x8d, 0x5a, 0x2c, 0x6f, 0x9e,
     0x2a, 0x4d, 0x1c, 0x7b, 0x2b, 0xa0, 0xf0, 0xe3);
+// MicLipVowelEnabled — encrypted 1-byte flag. When 1 (default) the mic
+// lip-sync shapes the mouth from the detected vowel (formant analysis);
+// when 0 the mouth just follows the loudness. Staged + applied on the next
+// boot (also live via SharedState when the mic task is running).
+static const ble_uuid128_t kMicLipVowelUuid = BLE_UUID128_INIT(
+    0x00, 0x1f, 0x4b, 0x8d, 0x5a, 0x2c, 0x6f, 0x9e,
+    0x2a, 0x4d, 0x1c, 0x7b, 0x32, 0xa0, 0xf0, 0xe3);
 // SpeakerVolume — encrypted R/W. 2-byte payload [pct LE u16] (0..200,
 // 100 = factory default). Live-applied via sink (no reboot).
 static const ble_uuid128_t kSpeakerVolumeUuid = BLE_UUID128_INIT(
@@ -438,6 +445,7 @@ static uint16_t g_operation_mode_handle = 0;
 static uint16_t g_audio_output_handle = 0;
 static uint16_t g_lip_sync_mode_handle = 0;
 static uint16_t g_mic_lip_agc_handle = 0;
+static uint16_t g_mic_lip_vowel_handle = 0;
 static uint16_t g_barge_in_enabled_handle = 0;
 static uint16_t g_proximity_handle = 0;
 static uint16_t g_proximity_tuning_handle = 0;
@@ -720,6 +728,17 @@ static int gatt_access_cb(uint16_t /*conn_handle*/, uint16_t attr_handle,
                 return BLE_ATT_ERR_UNLIKELY;
             }
             const std::uint8_t byte = g_active.mic_lip_agc_enabled ? 1 : 0;
+            const bool ok = append_encrypted(ctxt->om, {&byte, 1});
+            xSemaphoreGive(g_mutex);
+            return ok ? 0 : BLE_ATT_ERR_UNLIKELY;
+        }
+        if (attr_handle == g_mic_lip_vowel_handle) {
+            xSemaphoreTake(g_mutex, portMAX_DELAY);
+            if (!g_session.is_established()) {
+                xSemaphoreGive(g_mutex);
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+            const std::uint8_t byte = g_active.mic_lip_vowel_enabled ? 1 : 0;
             const bool ok = append_encrypted(ctxt->om, {&byte, 1});
             xSemaphoreGive(g_mutex);
             return ok ? 0 : BLE_ATT_ERR_UNLIKELY;
@@ -1293,6 +1312,13 @@ static int gatt_access_cb(uint16_t /*conn_handle*/, uint16_t attr_handle,
             if (pt.size() != 1) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
             xSemaphoreTake(g_mutex, portMAX_DELAY);
             g_staging.set_num("mic-lip-agc", pt[0] != 0 ? 1 : 0);
+            xSemaphoreGive(g_mutex);
+            return 0;
+        }
+        if (attr_handle == g_mic_lip_vowel_handle) {
+            if (pt.size() != 1) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+            xSemaphoreTake(g_mutex, portMAX_DELAY);
+            g_staging.set_num("mic-lip-vowel", pt[0] != 0 ? 1 : 0);
             xSemaphoreGive(g_mutex);
             return 0;
         }
@@ -1926,6 +1952,13 @@ static ble_gatt_chr_def kChrs[] = {
         // for Apply (reboot).
         .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
         .val_handle = &g_mic_lip_agc_handle,
+    },
+    {
+        .uuid = &kMicLipVowelUuid.u,
+        .access_cb = gatt_access_cb,
+        // R = current mic_lip_vowel_enabled byte (0/1); W = stage new value.
+        .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+        .val_handle = &g_mic_lip_vowel_handle,
     },
     {
         .uuid = &kBargeInEnabledUuid.u,

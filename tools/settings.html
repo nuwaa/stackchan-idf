@@ -734,6 +734,11 @@
         <span>自動ゲイン制御 (AGC) を有効にする</span>
       </label>
       <p class="hint">周辺の雑音レベルを自動追跡して、静かな部屋でも騒音下でも声に反応するよう感度を調整します。OFF にすると固定閾値で判定 (環境変化に弱いが予測しやすい)。保存後の再起動で反映されます。</p>
+      <label class="toggle-label" for="mic-lip-vowel" style="margin-top:0.5rem">
+        <input type="checkbox" id="mic-lip-vowel">
+        <span>母音に合わせて口の形を変える</span>
+      </label>
+      <p class="hint">声のフォルマント (共鳴周波数) から「あいうえお」を推定し、口の開きと横幅を母音ごとに変えます。OFF にすると声の大きさだけで口を開閉。保存後の再起動で反映されます。</p>
 
       <h2 class="section-title" style="margin-top:1rem">jtts ボイス</h2>
       <p class="hint" style="margin-bottom:0.5rem">空欄や変更なしで「保存」を押すと現在の設定は維持されます。</p>
@@ -1254,6 +1259,7 @@ const CHR_LIP_SYNC_MODE = 'e3f0a02a-7b1c-4d2a-9e6f-2c5a8d4b1f00';
 // MicLipAgcEnabled — encrypted 1-byte flag. When 1, mic lip-sync uses
 // adaptive noise-floor tracking. Staged via Apply path (reboot required).
 const CHR_MIC_LIP_AGC = 'e3f0a02b-7b1c-4d2a-9e6f-2c5a8d4b1f00';
+const CHR_MIC_LIP_VOWEL = 'e3f0a032-7b1c-4d2a-9e6f-2c5a8d4b1f00';
 // SpeakerVolume — encrypted R/W. 2-byte payload [pct LE u16] in 0..200
 // (100 = factory default per board). Live-applied (no reboot).
 const CHR_SPEAKER_VOLUME = 'e3f0a02c-7b1c-4d2a-9e6f-2c5a8d4b1f00';
@@ -1323,7 +1329,7 @@ const DIS_CHRS = {
 
 // --- State ---
 let bleDevice = null, bleServer = null, svc = null;
-let chrSsid = null, chrPass = null, chrKey = null, chrApply = null, chrStatus = null, chrKx = null, chrEn = null, chrRtpEn = null, chrJttsIdleEn = null, chrJtts = null, chrOtaCtrl = null, chrOtaData = null, chrProvider = null, chrGeminiKey = null, chrXiaozhiUrl = null, chrXiaozhiToken = null, chrFaceConfig = null, chrBattery = null, chrBatGauge = null, chrStartupArp = null, chrServoEnabled = null, chrMcpToken = null, chrLtConfig = null, chrServoLimits = null, chrServoRangeMode = null, chrServoPositions = null, chrBoardKind = null, chrWifiIp = null, chrWifiMac = null, chrAudioCtrl = null, chrAudioData = null, chrAudioCredit = null, chrAudioMetrics = null, chrLedState = null, chrMicLipGain = null, chrLedMouthSync = null, chrLipSyncMode = null, chrMicLipAgc = null, chrSpeakerVolume = null, chrJttsSay = null, chrSanoTts = null, chrOperationMode = null, chrAudioOutput = null, chrBargeIn = null, chrProximity = null, chrProximityTuning = null, chrDeviceName = null, chrAuthPassword = null, chrAvatarBc = null;
+let chrSsid = null, chrPass = null, chrKey = null, chrApply = null, chrStatus = null, chrKx = null, chrEn = null, chrRtpEn = null, chrJttsIdleEn = null, chrJtts = null, chrOtaCtrl = null, chrOtaData = null, chrProvider = null, chrGeminiKey = null, chrXiaozhiUrl = null, chrXiaozhiToken = null, chrFaceConfig = null, chrBattery = null, chrBatGauge = null, chrStartupArp = null, chrServoEnabled = null, chrMcpToken = null, chrLtConfig = null, chrServoLimits = null, chrServoRangeMode = null, chrServoPositions = null, chrBoardKind = null, chrWifiIp = null, chrWifiMac = null, chrAudioCtrl = null, chrAudioData = null, chrAudioCredit = null, chrAudioMetrics = null, chrLedState = null, chrMicLipGain = null, chrLedMouthSync = null, chrLipSyncMode = null, chrMicLipAgc = null, chrMicLipVowel = null, chrSpeakerVolume = null, chrJttsSay = null, chrSanoTts = null, chrOperationMode = null, chrAudioOutput = null, chrBargeIn = null, chrProximity = null, chrProximityTuning = null, chrDeviceName = null, chrAuthPassword = null, chrAvatarBc = null;
 let boardKind = null; // null = unknown (older firmware), else 0/1/2 from BOARD_*
 let batteryPollTimer = null;  // setInterval handle while connected
 let jttsInitialJson = '';  // last read JSON, used to detect Apply-time changes
@@ -2792,6 +2798,7 @@ document.getElementById('btn-connect').addEventListener('click', async () => {
       ['ledMouthSync', CHR_LED_MOUTH_SYNC],
       ['lipSyncMode',  CHR_LIP_SYNC_MODE],
       ['micLipAgc',    CHR_MIC_LIP_AGC],
+      ['micLipVowel',  CHR_MIC_LIP_VOWEL],
       ['speakerVolume', CHR_SPEAKER_VOLUME],
       ['jttsSay',       CHR_JTTS_SAY],
       ['sanoTts',       CHR_SANOTTS],
@@ -2851,6 +2858,7 @@ document.getElementById('btn-connect').addEventListener('click', async () => {
     chrLedMouthSync = found.ledMouthSync ?? null;
     chrLipSyncMode = found.lipSyncMode ?? null;
     chrMicLipAgc = found.micLipAgc ?? null;
+    chrMicLipVowel = found.micLipVowel ?? null;
     chrSpeakerVolume = found.speakerVolume ?? null;
     chrJttsSay = found.jttsSay ?? null;
     chrSanoTts = found.sanoTts ?? null;
@@ -2981,6 +2989,18 @@ document.getElementById('btn-connect').addEventListener('click', async () => {
         log(`マイク AGC: ${enabled ? '有効' : '無効'}`);
       } catch (e) {
         log(`マイク AGC 状態の取得失敗: ${e.message}`, 'err');
+      }
+    }
+
+    if (chrMicLipVowel) {
+      try {
+        const vowelBytes = await readEncrypted(chrMicLipVowel);
+        const enabled = vowelBytes.length > 0 && vowelBytes[0] !== 0;
+        document.getElementById('mic-lip-vowel').checked = enabled;
+        document.getElementById('mic-lip-vowel').dataset.initial = enabled ? '1' : '0';
+        log(`母音で口の形: ${enabled ? '有効' : '無効'}`);
+      } catch (e) {
+        log(`母音口形状 状態の取得失敗: ${e.message}`, 'err');
       }
     }
 
@@ -3271,6 +3291,7 @@ function onDisconnected() {
   delete document.getElementById('led-mouth-sync').dataset.initial;
   delete document.getElementById('lip-sync-mode').dataset.initial;
   delete document.getElementById('mic-lip-agc').dataset.initial;
+  delete document.getElementById('mic-lip-vowel').dataset.initial;
   delete document.getElementById('operation-mode').dataset.initial;
   delete document.getElementById('audio-output').dataset.initial;
   delete document.getElementById('barge-in-enabled').dataset.initial;
@@ -3405,6 +3426,15 @@ document.getElementById('btn-apply').addEventListener('click', async () => {
     if (chrMicLipAgc && agcInitial !== undefined && agcInitial !== agcWanted) {
       await writeEncrypted(chrMicLipAgc, new Uint8Array([agcCheckbox.checked ? 1 : 0]));
       log(`マイク AGC を ${agcCheckbox.checked ? '有効' : '無効'} に切り替え`, 'ok');
+    }
+
+    // Mic lip-sync vowel shaping: only push if it changed AND chr is present.
+    const vowelCheckbox = document.getElementById('mic-lip-vowel');
+    const vowelInitial = vowelCheckbox.dataset.initial;
+    const vowelWanted = vowelCheckbox.checked ? '1' : '0';
+    if (chrMicLipVowel && vowelInitial !== undefined && vowelInitial !== vowelWanted) {
+      await writeEncrypted(chrMicLipVowel, new Uint8Array([vowelCheckbox.checked ? 1 : 0]));
+      log(`母音で口の形を変える を ${vowelCheckbox.checked ? '有効' : '無効'} に切り替え`, 'ok');
     }
 
     // Operation mode: only push if it changed AND chr is present.

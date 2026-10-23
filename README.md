@@ -68,7 +68,11 @@ Pages サイトに反映されます。
   / Sad / Angry / Doubt / Sleepy)。**Avatar DSL** (`.avdsl` ソース → `.avbc` バイトコード)
   で顔のレイアウトとアニメーションを差し替え可能 (BLE / Wi-Fi 経由でライブ更新)。
 - **マイク連動口パク (lip sync)**: FFT + 帯域 log + spectral flux で開口度推定、
-  雑音床 EWMA AGC で環境ノイズに追従。
+  雑音床 EWMA AGC で環境ノイズに追従。さらに声のフォルマント (共鳴周波数) から
+  「あいうえお」を推定し、母音ごとに口の開きと横幅を変えます (あ = 大きく開く、
+  い = 横に平たく、う = 小さくすぼめる、え = 半開き、お = 丸く)。子音や息の部分は
+  声の大きさで小さく開閉。設定ページ (BLE / Wi-Fi) の「母音に合わせて口の形を変える」
+  で OFF にすると従来の大きさだけの口パクに戻ります (再起動で反映)。
 - **サーボ**: SCS0009 yaw + pitch を UART1 (1 Mbps) で制御。台形速度
   プロファイル `PathGenerator`、駆動時のみトルク有効化。ボード別レンジ
   キャリブレーション (ServoLimits) を NVS 保存。
@@ -230,6 +234,7 @@ OpenAI / Gemini の API キーはビルドに埋め込まず、BLE / Wi-Fi 設�
 │   ├── scs_servo/          SCS0009 ドライバ + PathGenerator (台形速度)
 │   ├── jtts/               日本語カタコト TTS (babble / speak_katakoto / LT 通知)
 │   ├── conversation/       AI 音声対話クライアント (OpenAI / Gemini / XiaoZhi)
+│   ├── lipsync_dsp/        マイク口パク用の母音検出 (LPC フォルマント解析 + 小さな MLP)
 │   ├── config_service/     BLE GATT 設定サービス + NVS + OTA + X25519/AES-GCM
 │   ├── wifi_config_service/ Wi-Fi HTTP 設定 + 内蔵 Web ページ + release OTA
 │   ├── telegram/           Telegram Bot API (TLS) 通知クライアント (oss)
@@ -245,6 +250,7 @@ OpenAI / Gemini の API キーはビルドに埋め込まず、BLE / Wi-Fi 設�
 │                           avatar_dsl/ (コンパイラ + WASM 連携),
 │                           stackchan-agent/ (ask_agent の委譲先サーバー, Bun + Claude Code)
 │                           xiaozhi-mon/ (会話サーバーの状態とログをブラウザで見るモニター)
+│                           vowel-lipsync/ (母音検出のリファレンス実装 + 学習 + データ生成)
 ├── assets/                 .avdsl ソース (default_face, omega_mouth, aokko_face)
 ├── partitions.csv          OTA 配置 (ota_0 / ota_1 / nvs / storage)
 ├── sdkconfig.defaults*     共通 + ボード別 (.cores3 / .atoms3r / .atoms3 / .stopwatch)
@@ -255,7 +261,7 @@ OpenAI / Gemini の API キーはビルドに埋め込まず、BLE / Wi-Fi 設�
 
 このリポジトリの自前ソース (`components/board`, `components/scs_servo`, `components/avatar`,
 `components/avatar_vm`, `components/jtts`, `components/conversation`,
-`components/config_service`, `components/wifi_config_service`,
+`components/lipsync_dsp`, `components/config_service`, `components/wifi_config_service`,
 `components/telegram`, `main`, `tools`) は
 **Boost Software License 1.0** ([LICENSE](LICENSE)) の下で配布されます。
 

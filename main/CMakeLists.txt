@@ -4,6 +4,7 @@ set(_main_priv_reqs
     scs_servo
     avatar
     conversation
+    lipsync_dsp
     config_service
     wifi_config_service
     jtts

@@ -69,6 +69,15 @@ jobs:
           cmake --build build
           ctest --test-dir build --output-on-failure
 
+      # --- lipsync_dsp: formant vowel detector (synthetic-vowel self test) --
+      - name: lipsync_dsp host tests
+        working-directory: components/lipsync_dsp/test/host
+        run: |
+          set -euo pipefail
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
       # --- flash_layout: ADR-001 exttab / bootctl format --------------------
       # format.c is the exact source the custom bootloader compiles, so the
       # validation / A-B selection / boot-decision logic is proven here.

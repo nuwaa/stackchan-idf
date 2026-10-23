@@ -560,6 +560,11 @@
         <span>自動ゲイン制御 (AGC) を有効にする</span>
       </label>
       <p class="hint">周辺の雑音レベルを自動追跡して感度を調整します。OFF にすると固定閾値で判定。即時反映（再起動不要）。</p>
+      <label class="toggle-label" for="mic-lip-vowel" style="margin-top:0.5rem">
+        <input type="checkbox" id="mic-lip-vowel">
+        <span>母音に合わせて口の形を変える</span>
+      </label>
+      <p class="hint">声のフォルマント (共鳴周波数) から「あいうえお」を推定し、口の開きと横幅を母音ごとに変えます。OFF にすると声の大きさだけで口を開閉。保存後の再起動で反映されます。</p>
 
       <h2 class="section-title" style="margin-top:1rem">jtts ボイス</h2>
       <p class="hint" style="margin-bottom:0.5rem">空欄や変更なしで「保存」を押すと現在の設定は維持されます。</p>
@@ -1630,6 +1635,7 @@ async function refresh() {
       $('lip-sync-mode').value = String(s.lip_sync_mode);
     }
     $('mic-lip-agc').checked = (s.mic_lip_agc_enabled !== false); // default true
+    $('mic-lip-vowel').checked = (s.mic_lip_vowel_enabled !== false); // default true
     $('bat-gauge-enabled').checked = (s.battery_gauge_enabled !== false); // default on if absent
     $('startup-arpeggio-enabled').checked = (s.startup_arpeggio_enabled !== false); // default on if absent
     $('servo-enabled').checked = (s.servo_enabled !== false); // default on if absent
@@ -1772,6 +1778,7 @@ async function apply() {
     await postText('/api/led-mouth-sync', ledMouthSync ? '1' : '0');
     await postText('/api/lip-sync-mode', $('lip-sync-mode').value);
     await postText('/api/mic-lip-agc', $('mic-lip-agc').checked ? '1' : '0');
+    await postText('/api/mic-lip-vowel', $('mic-lip-vowel').checked ? '1' : '0');
     await postText('/api/battery-gauge', batGauge ? '1' : '0');
     await postText('/api/startup-arpeggio', startupArp ? '1' : '0');
     await postText('/api/servo-enabled', servoEn ? '1' : '0');
@@ -2258,6 +2265,7 @@ const BADGE_FIELDS = {
   'openai-enabled':'openai-enabled', 'rtp-enabled':'rtp-enabled',
   'jtts-idle-enabled':'jtts-idle-enabled', 'auth-password':'auth-password',
   'mcp-token':'mcp-token', 'system-prompt':'system-prompt', 'mic-lip-agc':'mic-lip-agc',
+  'mic-lip-vowel':'mic-lip-vowel',
   'agent-url':'agent-url', 'agent-token':'agent-token',
   'prox-enabled':'prox-enabled', 'prox-near':'prox-near', 'prox-far':'prox-far',
   'prox-hold-ms':'prox-hold', 'prox-cooldown-s':'prox-cooldown',

@@ -7,6 +7,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <memory>
 
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
@@ -16,6 +17,8 @@
 
 #include <esp_dsp.h>
 #include <dsps_fft2r.h>
+
+#include <lipsync_dsp/vowel_detector.hpp>
 
 namespace stackchan::app {
 
@@ -60,6 +63,25 @@ std::array<float, kFftSize * 2> g_fft_io{};
 // phonemes rather than chattering.
 constexpr float kAttack = 0.55f;
 constexpr float kRelease = 0.20f;
+
+// Vowel-shaped mouth (formant analysis, components/lipsync_dsp). On voiced
+// frames the detector gives a vowel-blended (open, form) pose; the loudness
+// envelope only scales it a little so a quiet あ still looks like あ. On
+// unvoiced frames (consonants, breath) the mouth follows a reduced
+// loudness envelope with a neutral shape.
+//   kVowelLevelFull    — envelope level at which the vowel pose is used as-is
+//   kVowelLevelMin     — floor of the envelope scaling on voiced frames
+//   kUnvoicedOpen      — fraction of the envelope used while unvoiced
+//   kFormBlend         — per-frame EMA coefficient for `form` (≈ 60 ms glide,
+//                          same feel as the jtts vowel timeline)
+//   kFormReleaseOpen   — below this open value the form is released (-1)
+constexpr float kVowelLevelFull  = 0.35f;
+constexpr float kVowelLevelMin   = 0.45f;
+constexpr float kUnvoicedOpen    = 0.6f;
+constexpr float kFormBlend       = 0.4f;
+constexpr float kFormReleaseOpen = 0.05f;
+
+constexpr const char* kVowelNames[5] = {"a", "i", "u", "e", "o"};
 
 // Voice-band log-energy normalisation: an adaptive noise-floor follower
 // tracks the running quiet level (asymmetric EWMA — fast down, slow up
@@ -254,6 +276,10 @@ void mic_lip_sync_task_entry(void* arg)
     std::array<std::int16_t, kChunkSamples> buf{};
     bool mic_owned = false;
     float smoothed = 0.0f;
+    float form_smoothed = -1.0f;
+
+    // Heap-allocated: ~1.5 KB of state, and the task lives forever anyway.
+    auto vowel = std::make_unique<stackchan::lipsync::VowelDetector>();
 
     ESP_LOGI(kTag, "mic lip-sync task started (rate=%u Hz, chunk=%u samples)",
              static_cast<unsigned>(kSampleRate), static_cast<unsigned>(kChunkSamples));
@@ -271,6 +297,9 @@ void mic_lip_sync_task_entry(void* arg)
                 // Decay the smoothed envelope so the mouth closes while the
                 // other producer drives `mouth_open` itself.
                 smoothed = 0.0f;
+                form_smoothed = -1.0f;
+                state->face.mouth_form.store(-1.0f, std::memory_order_relaxed);
+                vowel->reset();
             }
             vTaskDelay(pdMS_TO_TICKS(50));
             continue;
@@ -322,12 +351,48 @@ void mic_lip_sync_task_entry(void* arg)
         if (level > 1.0f) level = 1.0f;
         if (level < 0.0f) level = 0.0f;
 
+        // Vowel shaping: replace the plain level by the detected vowel's
+        // pose (open scaled by the envelope, form = vowel width).
+        float target_open = level;
+        float target_form = -1.0f;
+        if (state->mic_lip.vowel_enabled.load(std::memory_order_relaxed)) {
+            const auto res = vowel->push(buf.data(), in_gain);
+            if (res.voiced) {
+                float scale = level / kVowelLevelFull;
+                if (scale > 1.0f) scale = 1.0f;
+                if (scale < kVowelLevelMin) scale = kVowelLevelMin;
+                target_open = res.open * scale;
+                target_form = res.form;
+            } else {
+                target_open = level * kUnvoicedOpen;
+            }
+            static int vowel_log_counter = 0;
+            if (++vowel_log_counter >= 30) {
+                vowel_log_counter = 0;
+                ESP_LOGD(kTag, "vowel: %s voiced=%d snr=%.1f per=%.2f f1=%.0f f2=%.0f open=%.2f form=%.2f p=%.2f/%.2f/%.2f/%.2f/%.2f",
+                         res.vowel ? kVowelNames[static_cast<int>(*res.vowel)] : "-", res.voiced ? 1 : 0,
+                         res.snr_db, res.periodicity, res.f1, res.f2, res.open, res.form, res.probs[0],
+                         res.probs[1], res.probs[2], res.probs[3], res.probs[4]);
+            }
+        }
+
         // Attack/release smoothing so the mouth doesn't pop between every
         // sample window. Rising edges use the faster coefficient.
-        const float coef = (level > smoothed) ? kAttack : kRelease;
-        smoothed += (level - smoothed) * coef;
+        const float coef = (target_open > smoothed) ? kAttack : kRelease;
+        smoothed += (target_open - smoothed) * coef;
+
+        // Form glides toward the vowel's width; it keeps the last shape while
+        // the mouth closes (so the lips don't snap wide on every consonant)
+        // and is released once the mouth is shut.
+        if (target_form >= 0.0f) {
+            form_smoothed = (form_smoothed < 0.0f) ? target_form
+                                                   : form_smoothed + (target_form - form_smoothed) * kFormBlend;
+        } else if (smoothed < kFormReleaseOpen) {
+            form_smoothed = -1.0f;
+        }
 
         state->face.mouth_open.store(smoothed, std::memory_order_relaxed);
+        state->face.mouth_form.store(form_smoothed, std::memory_order_relaxed);
     }
 }
 
@@ -335,10 +400,11 @@ void mic_lip_sync_task_entry(void* arg)
 
 void start_mic_lip_sync_task(SharedState& state)
 {
-    // 4 KB internal RAM stack — plenty for a 512-byte mic buffer + sqrt loop
-    // + M5Unified call frames. Pinned to core 1 alongside the render task so
-    // it shares Core 0 with the (now disabled) conversation/audio paths.
-    xTaskCreatePinnedToCore(mic_lip_sync_task_entry, "mic-lip", 4096, &state,
+    // 8 KB internal RAM stack — the 512-byte mic buffer + the vowel
+    // detector's per-frame scratch (two ~1 KB float arrays) + M5Unified call
+    // frames. Pinned to core 1 alongside the render task so it shares Core 0
+    // with the (now disabled) conversation/audio paths.
+    xTaskCreatePinnedToCore(mic_lip_sync_task_entry, "mic-lip", 8192, &state,
                             tskIDLE_PRIORITY + 2, nullptr, 1);
 }
 
