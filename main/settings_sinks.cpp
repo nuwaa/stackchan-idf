@@ -340,6 +340,9 @@ void on_config_change(const stackchan::config::registry::SettingDescriptor& d,
         // led_task が毎フレーム参照する SharedState atomic。
         g_state->led.lip_sync_mode.store(static_cast<std::uint8_t>(cfg.lip_sync_mode),
                                          std::memory_order_relaxed);
+    } else if (id == "mic-lip-vowel-debug") {
+        g_state->mic_lip.vowel_debug.store(cfg.mic_lip_vowel_debug, std::memory_order_relaxed);
+        if (!cfg.mic_lip_vowel_debug) g_state->clear_balloon();
     } else if (id == "led-mouth-sync") {
         g_state->led.mouth_sync_enabled.store(cfg.led_mouth_sync_enabled,
                                               std::memory_order_relaxed);

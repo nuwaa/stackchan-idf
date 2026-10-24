@@ -231,6 +231,9 @@ struct DeviceConfig {
     // detected vowel (formant analysis: open / form per あいうえお); when
     // false, the mouth height just follows the loudness as before.
     bool mic_lip_vowel_enabled = true;
+    // Debug aid: show the vowel the mic lip-sync currently hears (あ/い/う/え/お)
+    // in the balloon. Off by default; takes effect immediately.
+    bool mic_lip_vowel_debug = false;
     // Modulate the nekomimi LED brightness with SharedState::mouth_open so the
     // ears pulse along with whatever's driving the avatar's mouth (mic
     // lip-sync, jtts babble, conversation playback, …). Off by default —

@@ -495,6 +495,7 @@ esp_err_t handle_status_get(httpd_req_t* req)
     body += "\"lip_sync_mode\":" + std::to_string(static_cast<int>(cfg.lip_sync_mode)) + ",";
     body += "\"mic_lip_agc_enabled\":" + std::string(cfg.mic_lip_agc_enabled ? "true" : "false") + ",";
     body += "\"mic_lip_vowel_enabled\":" + std::string(cfg.mic_lip_vowel_enabled ? "true" : "false") + ",";
+    body += "\"mic_lip_vowel_debug\":" + std::string(cfg.mic_lip_vowel_debug ? "true" : "false") + ",";
     body += "\"barge_in_enabled\":" + std::string(cfg.barge_in_enabled ? "true" : "false") + ",";
     body += "\"proximity_enabled\":" + std::string(cfg.proximity_enabled ? "true" : "false") + ",";
     body += "\"proximity_near\":" + std::to_string(cfg.proximity_near) + ",";
@@ -721,6 +722,18 @@ esp_err_t handle_mic_lip_vowel_post(httpd_req_t* req)
     xSemaphoreTake(g_mutex, portMAX_DELAY);
     g_staging.set_num("mic-lip-vowel", enabled ? 1 : 0);
     xSemaphoreGive(g_mutex);
+    return send_empty(req);
+}
+
+// POST /api/mic-lip-vowel-debug — "1" shows the detected vowel in the balloon
+// (debug aid for tuning). Immediate: persisted + applied without reboot.
+esp_err_t handle_mic_lip_vowel_debug_post(httpd_req_t* req)
+{
+    if (!require_auth(req)) return ESP_OK;
+    std::string body;
+    if (read_body_str(req, body, 8) != ESP_OK) return ESP_OK;
+    const bool enabled = !body.empty() && body[0] == '1';
+    apply_immediate_num("mic-lip-vowel-debug", enabled ? 1 : 0);
     return send_empty(req);
 }
 
@@ -2316,6 +2329,7 @@ void register_handlers(httpd_handle_t server, const config::DeviceConfig& curren
     add(server, "/api/lip-sync-mode",   HTTP_POST, handle_lip_sync_mode_post);
     add(server, "/api/mic-lip-agc",     HTTP_POST, handle_mic_lip_agc_post);
     add(server, "/api/mic-lip-vowel",   HTTP_POST, handle_mic_lip_vowel_post);
+    add(server, "/api/mic-lip-vowel-debug", HTTP_POST, handle_mic_lip_vowel_debug_post);
     add(server, "/api/barge-in",        HTTP_POST, handle_barge_in_enabled_post);
     add(server, "/api/proximity",       HTTP_GET,  handle_proximity_get);
     add(server, "/api/proximity",       HTTP_POST, handle_proximity_post);

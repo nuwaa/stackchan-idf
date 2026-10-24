@@ -11,6 +11,15 @@ margin to the label edges. Speaker-scale augmentation resamples each
 utterance by ±8 / ±15 % (shifts formants like a longer / shorter vocal tract).
 Accuracy is reported with leave-one-speaker-out cross-validation before the
 final model is fitted on every speaker.
+
+Real microphone recordings can be mixed in with --real <wav> <labels.txt>
+(repeatable). The WAV is 16 kHz mono as captured by the device mic
+(tools/mic_tap.py); labels.txt lists, per line, a vowel and the start times (s)
+of the voiced segments where it is held: `a 4.93 13.09 ...`. Each segment
+runs to the end of the voiced run that starts there. The frames are weighted
+--real-weight times (default 20) so a few minutes of the real mic / room /
+voice pull the model towards the deployment conditions without drowning the
+synthetic speakers. Not used in the LOSO evaluation, only in the final fit.
 """
 import argparse, json, pathlib
 import numpy as np
@@ -47,6 +56,37 @@ def collect(ds, idx, rates):
                     continue
                 X.append(r["feat"]); Y.append(proto.VOWELS.index(lab)); S.append(e["speaker"])
     return np.array(X), np.array(Y), np.array(S)
+
+
+def collect_real(wav, labels, weight):
+    """Frames from a device-mic recording, labelled by segment start times."""
+    x = proto.read_wav(wav)
+    det = proto.Detector()
+    feats, voiced = [], []
+    for i in range(len(x) // proto.HOP):
+        r = det.push(x[i * proto.HOP:(i + 1) * proto.HOP])
+        feats.append(r["feat"]); voiced.append(r["voiced"])
+    feats = np.array(feats); voiced = np.array(voiced)
+    lab = np.full(len(feats), -1)
+    for line in pathlib.Path(labels).read_text().split("\n"):
+        p = line.split()
+        if not p or p[0] not in proto.VOWELS:
+            continue
+        v = proto.VOWELS.index(p[0])
+        for st in map(float, p[1:]):
+            i = max(0, int(st * proto.FS / proto.HOP) - 1)
+            while i < len(feats) and not voiced[i]:
+                i += 1
+            gap = 0
+            while i < len(feats) and gap <= 6:  # allow ~100 ms unvoiced dropouts
+                if voiced[i]:
+                    lab[i] = v; gap = 0
+                else:
+                    gap += 1
+                i += 1
+    m = lab >= 0
+    print(f"real {wav}: {m.sum()} labelled frames {np.bincount(lab[m], minlength=5).tolist()} x{weight}")
+    return np.repeat(feats[m], weight, axis=0), np.repeat(lab[m], weight)
 
 
 def train(X, Y, epochs=1500, lr=0.05, seed=0, l2=1e-4):
@@ -104,6 +144,9 @@ def main():
     ap.add_argument("--header")
     ap.add_argument("--no-aug", action="store_true")
     ap.add_argument("--from-json", help="skip training; write --header from this model.json")
+    ap.add_argument("--real", nargs=2, action="append", metavar=("WAV", "LABELS"), default=[],
+                    help="device-mic recording + segment labels to mix into the final fit")
+    ap.add_argument("--real-weight", type=int, default=20)
     args = ap.parse_args()
     if args.from_json:
         m = {k: np.array(v) for k, v in json.loads(pathlib.Path(args.from_json).read_text()).items()}
@@ -125,6 +168,9 @@ def main():
         hit += (p == Yc[te]).sum(); hit3 += (grp[p] == grp[Yc[te]]).sum(); tot += te.sum()
         print(f"  leave-out {sp:>10}: {acc:.3f}")
     print(f"LOSO frame accuracy: 5-class={hit / tot:.3f}  mouth-shape={hit3 / tot:.3f}")
+    for wav, labels in args.real:
+        Xr, Yr = collect_real(wav, labels, args.real_weight)
+        X = np.vstack([X, Xr]); Y = np.concatenate([Y, Yr])
     m = train(X, Y)
     pathlib.Path(args.out).write_text(json.dumps({k: np.asarray(v).tolist() for k, v in m.items()}))
     if args.header:

@@ -20,6 +20,11 @@
 
 #include <lipsync_dsp/vowel_detector.hpp>
 
+#include <cstring>
+#include <lwip/inet.h>
+#include <lwip/sockets.h>
+#include <sdkconfig.h>
+
 namespace stackchan::app {
 
 namespace {
@@ -82,6 +87,34 @@ constexpr float kFormBlend       = 0.4f;
 constexpr float kFormReleaseOpen = 0.05f;
 
 constexpr const char* kVowelNames[5] = {"a", "i", "u", "e", "o"};
+constexpr const char* kVowelKana[5] = {"あ", "い", "う", "え", "お"};
+
+// Debug mirror of the raw mic chunks to CONFIG_STACKCHAN_MIC_TAP_HOST (UDP
+// 5005, same packet layout as conversation_task; receiver tools/mic_tap.py,
+// state field = 0). Compiled out when the host string is empty. Used to
+// record real mic audio for tuning the vowel detector on the PC.
+constexpr bool kMicTapEnabled = sizeof(CONFIG_STACKCHAN_MIC_TAP_HOST) > 1;
+void mic_tap(const std::int16_t* buf, std::size_t n)
+{
+    static int sock = -1;
+    static sockaddr_in addr{};
+    if (sock < 0) {
+        sock = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (sock < 0) return;
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(5005);
+        addr.sin_addr.s_addr = inet_addr(CONFIG_STACKCHAN_MIC_TAP_HOST);
+    }
+    std::array<std::uint8_t, 8 + 256 * sizeof(std::int16_t)> pkt{};
+    if (n > 256) n = 256;
+    const std::uint32_t t = static_cast<std::uint32_t>(esp_log_timestamp());
+    const std::uint32_t st = 0;
+    std::memcpy(pkt.data(), &t, 4);
+    std::memcpy(pkt.data() + 4, &st, 4);
+    std::memcpy(pkt.data() + 8, buf, n * sizeof(std::int16_t));
+    ::sendto(sock, pkt.data(), 8 + n * sizeof(std::int16_t), 0, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+}
+constexpr std::uint32_t kVowelDebugHoldMs = 1500;  // balloon hold per vowel update
 
 // Voice-band log-energy normalisation: an adaptive noise-floor follower
 // tracks the running quiet level (asymmetric EWMA — fast down, slow up
@@ -345,6 +378,7 @@ void mic_lip_sync_task_entry(void* arg)
         // FFT-based voice-band log energy + spectral-flux onset detector.
         // estimate_mouth_open already normalises to [0, 1]; output gain
         // scales beyond that, saturating quiet inputs to full mouth open.
+        if constexpr (kMicTapEnabled) mic_tap(buf.data(), buf.size());
         const bool agc_on = state->mic_lip.agc_enabled.load(std::memory_order_relaxed);
         float level = estimate_mouth_open(buf.data(), buf.size(), in_gain, agc_on);
         level *= out_gain;
@@ -365,6 +399,19 @@ void mic_lip_sync_task_entry(void* arg)
                 target_form = res.form;
             } else {
                 target_open = level * kUnvoicedOpen;
+            }
+            // Debug balloon: show the vowel while it is heard, refresh on change.
+            if (state->mic_lip.vowel_debug.load(std::memory_order_relaxed)) {
+                static int shown = -1;
+                static int refresh_counter = 0;
+                const int cur = res.vowel ? static_cast<int>(*res.vowel) : -1;
+                if (cur >= 0 && (cur != shown || ++refresh_counter >= 60)) {
+                    state->set_balloon_text(kVowelKana[cur], kVowelDebugHoldMs);
+                    shown = cur;
+                    refresh_counter = 0;
+                } else if (cur < 0 && !res.voiced) {
+                    shown = -1;  // next vowel re-triggers even if it is the same
+                }
             }
             static int vowel_log_counter = 0;
             if (++vowel_log_counter >= 30) {

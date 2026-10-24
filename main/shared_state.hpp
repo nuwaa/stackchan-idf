@@ -245,6 +245,8 @@ public:
         // Vowel-shaped mouth (formant analysis) vs plain loudness meter.
         // Live — read every mic frame.
         std::atomic<bool> vowel_enabled{true};
+        // Debug: show the detected vowel in the balloon. Live.
+        std::atomic<bool> vowel_debug{false};
     };
     MicLip mic_lip;
 

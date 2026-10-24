@@ -697,6 +697,8 @@ extern "C" void app_main()
                                        std::memory_order_relaxed);
     g_state->mic_lip.vowel_enabled.store(cfg.mic_lip_vowel_enabled,
                                          std::memory_order_relaxed);
+    g_state->mic_lip.vowel_debug.store(cfg.mic_lip_vowel_debug,
+                                       std::memory_order_relaxed);
     g_state->barge_in_enabled.store(cfg.barge_in_enabled,
                                     std::memory_order_relaxed);
     g_state->proximity.enabled.store(cfg.proximity_enabled, std::memory_order_relaxed);
