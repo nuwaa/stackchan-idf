@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "avatar.cpp"
         "balloon.cpp"
+        "emoji_sprites.cpp"
         "animation.cpp"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."

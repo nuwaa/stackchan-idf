@@ -79,6 +79,10 @@ public:
     void setTextColor(std::uint16_t fg, std::uint16_t bg) override { sprite_.setTextColor(fg, bg); }
     void setFont(const lgfx::IFont* font) override { sprite_.setFont(font); }
     void setTextSize(float size) override { sprite_.setTextSize(size); }
+    void setTextSize(float x_scale, float y_scale) override
+    {
+        sprite_.setTextSize(x_scale, y_scale);
+    }
     void setTextDatum(lgfx::textdatum_t datum) override { sprite_.setTextDatum(datum); }
     void drawString(const char* str, std::int32_t x, std::int32_t y) override
     {
@@ -90,6 +94,12 @@ public:
         sprite_.setClipRect(x, y, w, h);
     }
     void clearClipRect() override { sprite_.clearClipRect(); }
+    void drawRgb565Image(std::int32_t x, std::int32_t y, std::int32_t w,
+                         std::int32_t h, const std::uint16_t* pixels) override
+    {
+        sprite_.pushImage(x, y, w, h,
+                          reinterpret_cast<const lgfx::rgb565_t*>(pixels));
+    }
 
 private:
     M5GFX& panel_;
@@ -218,6 +228,10 @@ public:
     void setTextColor(std::uint16_t fg, std::uint16_t bg) override { active().setTextColor(fg, bg); }
     void setFont(const lgfx::IFont* font) override { active().setFont(font); }
     void setTextSize(float size) override { active().setTextSize(size); }
+    void setTextSize(float x_scale, float y_scale) override
+    {
+        active().setTextSize(x_scale, y_scale);
+    }
     void setTextDatum(lgfx::textdatum_t datum) override { active().setTextDatum(datum); }
     void drawString(const char* str, std::int32_t x, std::int32_t y) override
     {
@@ -229,6 +243,12 @@ public:
         active().setClipRect(x - ox_, y - oy_, w, h);
     }
     void clearClipRect() override { active().clearClipRect(); }
+    void drawRgb565Image(std::int32_t x, std::int32_t y, std::int32_t w,
+                         std::int32_t h, const std::uint16_t* pixels) override
+    {
+        active().pushImage(x - ox_, y - oy_, w, h,
+                           reinterpret_cast<const lgfx::rgb565_t*>(pixels));
+    }
 
 private:
     lgfx::LGFXBase& active()

@@ -38,7 +38,9 @@ appropriately.
 
 - **ggwave acoustic reactions (CoreS3)**: a fully offline mode that receives
   Audible Normal UTF-8 messages through the built-in microphone and responds
-  with an expression, head gesture, speech balloon, and local speech. See the
+  with an expression, head gesture, speech balloon, and local speech. Balloons
+  support half-width kana, Simplified and Traditional Chinese, and Unicode 18.0
+  colour emoji. See the
   [Japanese setup and test guide](docs/acoustic-reaction.md).
 
 - **AI voice conversation**: WebSocket to one of OpenAI Realtime / Google Gemini

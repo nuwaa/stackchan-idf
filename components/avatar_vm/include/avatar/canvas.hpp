@@ -81,11 +81,14 @@ public:
     virtual void setTextColor(std::uint16_t fg, std::uint16_t bg) = 0;
     virtual void setFont(const lgfx::IFont* font) = 0;
     virtual void setTextSize(float size) = 0;
+    virtual void setTextSize(float x_scale, float y_scale) = 0;
     virtual void setTextDatum(lgfx::textdatum_t datum) = 0;
     virtual void drawString(const char* str, std::int32_t x, std::int32_t y) = 0;
     virtual std::int32_t textWidth(const char* str) = 0;
     virtual void setClipRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h) = 0;
     virtual void clearClipRect() = 0;
+    virtual void drawRgb565Image(std::int32_t x, std::int32_t y, std::int32_t w,
+                                 std::int32_t h, const std::uint16_t* pixels) = 0;
 };
 
 } // namespace stackchan::avatar

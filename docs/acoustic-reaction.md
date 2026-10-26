@@ -48,6 +48,12 @@ COM ポート名は使用環境に合わせて変更してください。Web Fla
 
 認識しにくい場合は、送信機を 20–80 cm 程度に置き、送信音量、周囲の騒音、CoreS3 の向きを調整してください。サーボの方向と可動範囲は機体ごとのキャリブレーションに依存します。
 
+受信した吹き出しは、日本語・半角カタカナ・簡体字・繁体字を文字ごとの
+フォントフォールバックで表示します。Unicode 18.0のfully-qualified絵文字
+シーケンスは、Noto Emoji由来の16×16カラースプライトで表示します。
+2026年10月26日にCoreS3実機で、半角カタカナ・簡体字・繁体字・カラー絵文字の
+受信表示を確認しました。
+
 ## 実装と依存関係
 
 受信器と判定ロジックは `components/acoustic_reaction`、M5Unified のマイク・スピーカー所有権を含む実行タスクは `main/acoustic_reaction_task.cpp` にあります。ggwave は upstream の Arduino 向けソースを `third_party/ggwave` に固定して同梱しています。由来とライセンスは同ディレクトリの `UPSTREAM.txt` と `LICENSE` を参照してください。

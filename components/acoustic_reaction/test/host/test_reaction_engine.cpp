@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 using namespace stackchan::acoustic;
@@ -42,6 +43,15 @@ int main()
 
     const std::string multilingual = "日本語 简体字 繁體字 English";
     CHECK(valid_utf8_payload(std::span(reinterpret_cast<const std::uint8_t*>(multilingual.data()), multilingual.size())));
+    for (const char* text : {"ｽﾀｯｸﾁｬﾝ、こんにちは", "简体字：你好", "繁體字：您好",
+                             "絵文字：❤️🇯🇵👍🏽"}) {
+        const auto* bytes = reinterpret_cast<const std::uint8_t*>(text);
+        const std::span payload{bytes, std::strlen(text)};
+        CHECK(valid_utf8_payload(payload));
+        const auto decoded = decode_payload(payload);
+        CHECK(decoded.has_value());
+        CHECK(*decoded == text);
+    }
     const std::array<std::uint8_t, 2> bad_utf8{0xc0, 0xaf};
     CHECK(!valid_utf8_payload(bad_utf8));
     const std::array<std::uint8_t, 3> control{'a', 0, 'b'};

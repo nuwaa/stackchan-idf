@@ -16,3 +16,11 @@ enable_testing()
 add_executable(avatar_test_balloon_layout test_balloon_layout.cpp)
 target_compile_options(avatar_test_balloon_layout PRIVATE -Wall -Wextra)
 add_test(NAME balloon_layout COMMAND avatar_test_balloon_layout)
+
+add_executable(avatar_emoji_test
+    test_emoji_sprites.cpp
+    ../../emoji_sprites.cpp)
+target_include_directories(avatar_emoji_test PRIVATE ../..)
+target_compile_features(avatar_emoji_test PRIVATE cxx_std_20)
+target_compile_options(avatar_emoji_test PRIVATE -Wall -Wextra -Werror)
+add_test(NAME emoji_sprites COMMAND avatar_emoji_test)

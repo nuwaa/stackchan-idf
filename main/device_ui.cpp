@@ -161,6 +161,7 @@ public:
     void setTextColor(std::uint16_t fg, std::uint16_t bg) override { inner_.setTextColor(fg, bg); }
     void setFont(const lgfx::IFont* f) override { inner_.setFont(f); }
     void setTextSize(float s) override { inner_.setTextSize(s); }
+    void setTextSize(float sx, float sy) override { inner_.setTextSize(sx, sy); }
     void setTextDatum(lgfx::textdatum_t d) override { inner_.setTextDatum(d); }
     void drawString(const char* s, std::int32_t x, std::int32_t y) override {
         inner_.drawString(s, x + ox_, y + oy_);
@@ -170,6 +171,11 @@ public:
         inner_.setClipRect(x + ox_, y + oy_, w, h);
     }
     void clearClipRect() override { inner_.clearClipRect(); }
+    void drawRgb565Image(std::int32_t x, std::int32_t y, std::int32_t w,
+                         std::int32_t h, const std::uint16_t* pixels) override
+    {
+        inner_.drawRgb565Image(x + ox_, y + oy_, w, h, pixels);
+    }
 
 private:
     avatar::RichCanvas& inner_;

@@ -34,7 +34,7 @@ Pages サイトに反映されます。
 
 ## 機能
 
-- **ggwave 音響リアクション (CoreS3)**: Audible Normal の UTF-8 文字列を内蔵マイクで受信し、表情・首振り・吹き出し・ローカル音声で反応する完全オフラインモード。Wi-Fi / Bluetooth / クラウド不要。設定、送信語、実機確認は [docs/acoustic-reaction.md](docs/acoustic-reaction.md) を参照。
+- **ggwave 音響リアクション (CoreS3)**: Audible Normal の UTF-8 文字列を内蔵マイクで受信し、表情・首振り・吹き出し・ローカル音声で反応する完全オフラインモード。半角カナ、簡体字、繁体字、Unicode 18.0カラー絵文字を表示。Wi-Fi / Bluetooth / クラウド不要。設定、送信語、実機確認は [docs/acoustic-reaction.md](docs/acoustic-reaction.md) を参照。
 
 - **AI 音声対話**: OpenAI Realtime / Google Gemini Live / XiaoZhi サーバーに WebSocket
   接続。マイク入力 → 応答音声 → 口パク連動。半二重 CoreS3 では発話中マイクを止め、
