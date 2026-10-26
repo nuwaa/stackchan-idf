@@ -11,6 +11,8 @@ ESP-IDF 5.5 / C++20。AI 音声対話 (OpenAI / Gemini / XiaoZhi)、BLE / Wi-Fi 
 GitHub Releases に置かれたファームウェアをブラウザから書き込めます (Chrome / Edge):
 
 - **書き込み**: <https://ciniml.github.io/stackchan-idf/>
+- **M5ｽﾀｯｸﾁｬﾝ音響リアクション版**: <https://nuwaa.github.io/Can-You-Hear-the-Data/install-stackchan.html>
+  (CoreS3専用。ATOM S3R用インストーラーとは別ファームウェア)
 - **BLE 設定**: <https://ciniml.github.io/stackchan-idf/settings.html> (Web Bluetooth、デスクトップ Chrome / Edge のみ)
 - **Wi-Fi 設定**: デバイスを Wi-Fi に繋いだ後 `http://stackchan-XXXXXX.local/` (mDNS)
 - **iOS / SoftAP 設定**: 本体ボタン (boards により方法が異なる、後述) で AP モードに入り、
