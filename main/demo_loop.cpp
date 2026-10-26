@@ -50,6 +50,7 @@ constexpr const char* kTag = "stackchan";
     const bool conversation_enabled = args.conversation_enabled;
     const bool jtts_idle_enabled = args.jtts_idle_enabled;
     const bool external_servo_control = args.external_servo_control;
+    const bool suppress_idle_reactions = args.suppress_idle_reactions;
     const ServoLimits& limits = args.limits;
 
     using namespace stackchan;
@@ -394,7 +395,7 @@ constexpr const char* kTag = "stackchan";
         // there is no conversation at all — otherwise it would fight the
         // conversation task for the avatar and the I2S bus.
         const bool allow_idle_demo = !conv_active || conv_idle;
-        const bool allow_full_demo = !conv_active;
+        const bool allow_full_demo = !conv_active && !suppress_idle_reactions;
 
         // Reminder set by the conversation's set_timer tool. Outside a
         // conversation session speak it (same path as the LT timer); during

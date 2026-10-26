@@ -39,6 +39,15 @@ jobs:
           cmake --version | head -1
           g++ --version | head -1
 
+      # --- acoustic_reaction: UTF-8 rules + real ggwave round trip --------
+      - name: acoustic_reaction host tests
+        working-directory: components/acoustic_reaction/test/host
+        run: |
+          set -euo pipefail
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
       # --- avatar_vm: bytecode decoder + VM interpreter + fuzz -------------
       # Built twice: once plain (fast, exhaustive) and once under
       # ASan + UBSan so the fuzz harness proves memory safety on arbitrary

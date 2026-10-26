@@ -45,6 +45,7 @@ enum class OperationMode : std::uint8_t {
     EspNowSender = 5,  // 自機の現在姿勢を ESP-NOW で配信 (もう 1 台の Stack-chan が
                        // EspNowRemote で受信するとミラーリングする)。頭部はローカルの
                        // アイドル動作等が駆動する。同じく固定チャネル・httpd/会話なし。
+    AcousticReaction = 6, // ggwave Audible Normal/0 を内蔵マイクで受信し、完全オフラインで反応。
 };
 
 // OperationMode の表示・選択に関する単一の情報源。オンデバイス設定 UI
@@ -101,7 +102,8 @@ static_assert(static_cast<int>(Provider::OpenAi) == 0 &&
               "Provider numbering is a BLE/HTTP/NVS wire contract — append only");
 static_assert(static_cast<int>(OperationMode::MicLipSync) == 0 &&
               static_cast<int>(OperationMode::JttsRandom) == 1 &&
-              static_cast<int>(OperationMode::Conversation) == 2,
+              static_cast<int>(OperationMode::Conversation) == 2 &&
+              static_cast<int>(OperationMode::AcousticReaction) == 6,
               "OperationMode numbering is a BLE/HTTP/NVS wire contract — append only");
 static_assert(static_cast<int>(AudioOutput::Auto) == 0 &&
               static_cast<int>(AudioOutput::Internal) == 1 &&

@@ -1,5 +1,6 @@
 set(_main_priv_reqs
     board
+    acoustic_reaction
     crash_report
     scs_servo
     avatar
@@ -36,6 +37,7 @@ set(_main_priv_reqs
 # just skip the per-file SRCS here, which trims out only the main-side glue
 # (~10 KB) on the no-PSRAM build.
 set(_main_srcs
+    "acoustic_reaction_task.cpp"
     "ap_screen.cpp"
     "app_main.cpp"
     "asr_probe.cpp"

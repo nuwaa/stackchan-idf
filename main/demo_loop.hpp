@@ -34,6 +34,10 @@ struct DemoLoopArgs {
     // head-wobble are suppressed (the rest — expression, balloon, babble —
     // still runs). See OperationMode::EspNowRemote.
     bool external_servo_control = false;
+    // AcousticReaction owns expression/balloon/speech while listening. Keep
+    // housekeeping and normal blink/saccade rendering, but suppress demo
+    // reactions that could overwrite a decoded-message reaction.
+    bool suppress_idle_reactions = false;
     ServoLimits limits;                        // random-pose ranges
 };
 

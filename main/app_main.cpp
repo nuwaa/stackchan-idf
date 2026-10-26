@@ -63,6 +63,7 @@
 #include "settings_sinks.hpp"
 #include "shared_state.hpp"
 #include "speech.hpp"
+#include "acoustic_reaction_task.hpp"
 #include "voice_db.hpp"
 #include "hmm_voice.hpp"
 #include "sano_weights.hpp"
@@ -357,6 +358,8 @@ extern "C" void app_main()
 #else
     const bool asr_mode = false;
 #endif
+    const bool acoustic_mode =
+        (cfg.operation_mode == stackchan::config::OperationMode::AcousticReaction);
 
     // ESP-NOW リモコン受信モード: WiFi を固定チャネル (AP 非接続) で使うため、
     // httpd / 会話 / wifi_audio / STA 接続待ちの各タスクを起動しない。頭部は
@@ -377,10 +380,11 @@ extern "C" void app_main()
     // Must run after the i2c dump (which uses In_I2C) and before any task
     // that touches In_I2C starts — see camera_service::init_resident.
     // Skipped in ASR mode (frees internal/DMA RAM for esp-sr AFE).
-    if (!asr_mode) {
+    if (!asr_mode && !acoustic_mode) {
         stackchan::app::camera_service::init_resident(board);
     } else {
-        ESP_LOGI(kTag, "camera: skipped (ASR mode owns internal RAM)");
+        ESP_LOGI(kTag, "camera: skipped (%s mode owns audio/internal RAM)",
+                 acoustic_mode ? "AcousticReaction" : "ASR");
     }
 
     // Cache the jtts options used by the settings-page test-speak buttons
@@ -632,6 +636,13 @@ extern "C" void app_main()
         cfg.openai_enabled = false;
         cfg.jtts_idle_enabled = false;
         break;
+    case stackchan::config::OperationMode::AcousticReaction:
+        // Fully offline: the acoustic receiver owns the microphone and local
+        // Speech owns the speaker. No cloud conversation or idle babble.
+        cfg.openai_enabled = false;
+        cfg.jtts_idle_enabled = false;
+        cfg.rtp_audio_enabled = false;
+        break;
     }
     ESP_LOGI(kTag, "operation_mode=%u (conv=%d jtts_idle=%d asr=%d espnow=%d)",
              static_cast<unsigned>(cfg.operation_mode),
@@ -740,8 +751,10 @@ extern "C" void app_main()
     // makes streaming playback choppy. Pass the conversation-enabled flag
     // so the sink refuses `begin` while voice chat is on.
 #if CONFIG_STACKCHAN_AUDIO_STREAM_ENABLED
-    stackchan::app::diag_heap("pre-audio_stream");
-    stackchan::app::audio_stream::start(*g_state, cfg.openai_enabled);
+    if (!acoustic_mode) {
+        stackchan::app::diag_heap("pre-audio_stream");
+        stackchan::app::audio_stream::start(*g_state, cfg.openai_enabled);
+    }
 #else
     ESP_LOGI(kTag, "audio_stream: disabled at compile time (slim build)");
 #endif
@@ -752,17 +765,21 @@ extern "C" void app_main()
     // 非BLE経路 (set_wifi_connected) は null ガード済みなので BLE off でも安全。
     // BLE は全モードで起動 (設定に必要)。ASR モードの内部/DMA RAM は
     // SPIRAM_MALLOC_RESERVE_INTERNAL 拡大 + AFE/タスクの PSRAM 寄せで捻出する。
-    stackchan::app::diag_heap("pre-config(ble)");
-    if (auto r = stackchan::config::start(cfg); !r) {
-        ESP_LOGE(kTag, "BLE config service failed to start: %d (continuing without BLE)",
-                 static_cast<int>(r.error()));
+    if (!acoustic_mode) {
+        stackchan::app::diag_heap("pre-config(ble)");
+        if (auto r = stackchan::config::start(cfg); !r) {
+            ESP_LOGE(kTag, "BLE config service failed to start: %d (continuing without BLE)",
+                     static_cast<int>(r.error()));
+        }
+    } else {
+        ESP_LOGI(kTag, "AcousticReaction: BLE disabled (fully offline mode)");
     }
 
     // ESP-NOW モードでは WiFi STA(AP接続) を張らない — ESP-NOW は固定チャネル
     // 前提で、AP に繋ぐとチャネルがホップして受信できなくなる。WiFi の初期化は
     // 後段の espnow::start が固定チャネルで行う。httpd も上がらないため HTTP sink
     // 登録も飛ばす (設定は別モードで行う)。
-    if (!espnow_any) {
+    if (!espnow_any && !acoustic_mode) {
         stackchan::app::diag_heap("pre-wifi");
         stackchan::app::wifi_start(cfg);
         // Same sink/getter on the Wi-Fi side. The Wi-Fi service starts on a worker
@@ -772,7 +789,8 @@ extern "C" void app_main()
         stackchan::app::settings_sinks::register_http_sinks(
             static_cast<std::uint8_t>(board.kind()));
     } else {
-        ESP_LOGI(kTag, "ESP-NOW mode: skipping Wi-Fi STA / httpd (fixed-channel ESP-NOW below)");
+        ESP_LOGI(kTag, "%s: skipping Wi-Fi STA / httpd",
+                 acoustic_mode ? "AcousticReaction" : "ESP-NOW mode");
     }
     // (Channel /mcp/events bring-up happens AFTER start_conversation_task so
     //  the conv-task gets first dibs on contiguous internal RAM for its 3 ×
@@ -784,7 +802,7 @@ extern "C" void app_main()
     // + JSON parse before we build the full polling loop in Phase 2. Token
     // comes from sdkconfig.defaults.local (gitignored). 10 KiB stack — the
     // request itself uses ~6 KiB for TLS + mbedtls scratch.
-    xTaskCreatePinnedToCore(
+    if (!acoustic_mode) xTaskCreatePinnedToCore(
         +[](void* /*arg*/) {
             // Wait for STA connection. wifi_audio's reader does the same dance.
             while (!stackchan::app::wifi_is_connected()) {
@@ -838,7 +856,7 @@ extern "C" void app_main()
     // Wi-Fi live audio (RTP/L16 today). Like the BLE sink, mutually exclusive
     // with the conversation backend, so it self-disables when voice chat is on.
 #if CONFIG_STACKCHAN_WIFI_AUDIO_ENABLED
-    if (!espnow_any) {
+    if (!espnow_any && !acoustic_mode) {
         stackchan::app::diag_heap("pre-wifi_audio");
         stackchan::app::wifi_audio::start(*g_state, cfg.openai_enabled, cfg.rtp_audio_enabled);
     }
@@ -896,7 +914,13 @@ extern "C" void app_main()
         .state = g_state,
         .circular_display = profile.circular_display,
     };
-    const auto servo_limits = stackchan::app::parse_servo_limits(cfg.servo_limits_json);
+    auto servo_limits = stackchan::app::parse_servo_limits(cfg.servo_limits_json);
+    // Acoustic nods deliberately use a wider upward stroke than the historical
+    // -10 degree default.  Existing NVS settings may still contain -10, so make
+    // the explicitly requested -20 degree endpoint reachable in this mode.
+    if (acoustic_mode) {
+        servo_limits.pitch_min_deg = std::min(servo_limits.pitch_min_deg, -20);
+    }
     if (!no_servo_bus) {
         const auto sb = board.servo_bus_config();
         g_servo_args = new stackchan::app::ServoTaskArgs{
@@ -1061,7 +1085,7 @@ extern "C" void app_main()
     // (no-PSRAM) slim profile drops the whole TLS / WebSocket / assistant
     // PCM ring stack at compile time.
 #if CONFIG_STACKCHAN_CONVERSATION_ENABLED
-    if (!espnow_any) {
+    if (!espnow_any && !acoustic_mode) {
         stackchan::app::start_conversation_task(*g_conversation_args);
     }
 #else
@@ -1082,6 +1106,8 @@ extern "C" void app_main()
     } else if (espnow_any) {
         // ESP-NOW モード: 頭部が主役。マイク lip-sync は起動しない。
         ESP_LOGI(kTag, "ESP-NOW mode: mic lip-sync skipped (remote drives the head)");
+    } else if (acoustic_mode) {
+        ESP_LOGI(kTag, "AcousticReaction: dedicated ggwave receiver owns microphone");
     } else if (!cfg.openai_enabled && !cfg.jtts_idle_enabled) {
         ESP_LOGI(kTag, "mic lip-sync: starting (conversation off, jtts idle off)");
         stackchan::app::start_mic_lip_sync_task(*g_state);
@@ -1097,16 +1123,18 @@ extern "C" void app_main()
     // stack for the same pool. mcp_events::start allocates the queue (in
     // PSRAM) and a 3 KiB internal-RAM stack for the diff monitor — small but
     // fragmenting if it lands before the segment buffers.
-    stackchan::app::diag_heap("pre-mcp_events");
-    stackchan::wifi_config::mcp_events::start(+[]() -> int {
-        return g_state == nullptr ? 0
-                                  : static_cast<int>(g_state->conv.status.load(
-                                        std::memory_order_relaxed));
-    });
+    if (!acoustic_mode) {
+        stackchan::app::diag_heap("pre-mcp_events");
+        stackchan::wifi_config::mcp_events::start(+[]() -> int {
+            return g_state == nullptr ? 0
+                                      : static_cast<int>(g_state->conv.status.load(
+                                            std::memory_order_relaxed));
+        });
+    }
     // Fire the boot event once Wi-Fi has an IP — Claude wants the address +
     // FW version up front, both meaningless before the IP is assigned. Skipped
     // in ESP-NOW mode (no STA association → the waiter would spin forever).
-    if (!espnow_any)
+    if (!espnow_any && !acoustic_mode)
     xTaskCreatePinnedToCore(
         +[](void* arg) {
             const std::uint8_t kind = *static_cast<std::uint8_t*>(arg);
@@ -1183,7 +1211,7 @@ extern "C" void app_main()
     // their internal-RAM allocations don't race the camera DMA descriptors.
     // Replaced by a device_ui (Phase 3) start/stop button — remove this
     // block when that lands.
-    xTaskCreatePinnedToCore(
+    if (!acoustic_mode) xTaskCreatePinnedToCore(
         +[](void* arg) {
             auto* b = static_cast<stackchan::board::Board*>(arg);
             vTaskDelay(pdMS_TO_TICKS(30000));
@@ -1208,8 +1236,10 @@ extern "C" void app_main()
     // ESP-NOW モードは httpd も TTS も使わないので、httpd 待ちもボイス ロードも
     // 飛ばして即 demo_loop へ (顔 + 頭部追従のみ)。
     if (!espnow_any) {
-        for (int i = 0; i < 80 && !stackchan::wifi_config::http_started(); ++i) {
-            vTaskDelay(pdMS_TO_TICKS(500));
+        if (!acoustic_mode) {
+            for (int i = 0; i < 80 && !stackchan::wifi_config::http_started(); ++i) {
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }
         }
         // ASR モードでは重い HMM / unit ボイスをロードしない — その内部/DMA RAM を
         // AFE + マイク I2S DMA に回すため。ウェイクワードの返事「はい」は軽い formant
@@ -1241,7 +1271,7 @@ extern "C" void app_main()
     // ダンス エンジン: 音声同期でサーボを駆動する。マイク/スピーカーを占有する
     // ASR や、頭部を外部制御する ESP-NOW とは排他 (通常モードのみ)。トリガは
     // HTTP /api/dance/start|stop (BLE/画面は P4)。
-    if (!asr_mode && !espnow_any) {
+    if (!asr_mode && !espnow_any && !acoustic_mode) {
         stackchan::app::diag_heap("pre-dance");
         stackchan::app::start_dance_engine(*g_state, servo_limits);
         stackchan::wifi_config::set_dance_control_sink(&stackchan::app::dance_control);
@@ -1251,6 +1281,11 @@ extern "C" void app_main()
     // LT timekeeper の残り時間を HTTP (GET /api/lt/status) から読めるようにする。
     // タイマー本体は demo_loop が回すので、ここは SharedState.lt の読み出しのみ。
     stackchan::wifi_config::set_lt_state_getter(&lt_state_view);
+
+    if (acoustic_mode) {
+        stackchan::app::diag_heap("pre-acoustic-rx");
+        stackchan::app::start_acoustic_reaction_task(*g_state, cfg.jtts_config_json);
+    }
 
     stackchan::app::diag_heap("pre-demo_loop");
     stackchan::app::run_demo_loop({
@@ -1264,7 +1299,8 @@ extern "C" void app_main()
         .touch_gaze_follow = profile.touch_gaze_follow,
         .conversation_enabled = cfg.openai_enabled,
         .jtts_idle_enabled = cfg.jtts_idle_enabled,
-        .external_servo_control = espnow_mode,
+        .external_servo_control = espnow_mode || acoustic_mode,
+        .suppress_idle_reactions = acoustic_mode,
         .limits = servo_limits,
     });
 }

@@ -413,15 +413,15 @@
 
   <h2 class="section-title" style="margin-top:0.5rem">動作モード</h2>
   <p class="hint" style="margin-bottom:0.5rem">
-    Stack-chan の主な振る舞いを 3 つから選びます。「会話応答」は OpenAI / Gemini /
-    XiaoZhi のいずれかで会話、「JTTS ランダム発話」は音声のアイドル発話のみ、
-    「マイクでリップシンク」はマイク入力に合わせて口だけ動かします。
+    Stack-chan の主な振る舞いを選びます。「音響リアクション」はWi-Fiを使わず、
+    ggwaveの音響データに表情とローカル音声で反応します。
     保存後の再起動で切替わります。
   </p>
   <select id="operation-mode">
     <option value="2">会話応答 (Conversation)</option>
     <option value="1">JTTS ランダム発話 (JttsRandom)</option>
     <option value="0">マイクでリップシンク (MicLipSync)</option>
+    <option value="6">音響リアクション (AcousticReaction)</option>
   </select>
 
   <label for="ssid">Wi-Fi SSID</label>

@@ -78,6 +78,7 @@ Open JTalk / pyopenjtalk を使います (firmware には含みません)。
 |---|---|---|
 | [M5GFX](third_party/m5gfx/LICENSE) | MIT | © 2021 M5Stack |
 | [M5Unified](components/M5Unified/LICENSE) | MIT | © 2021 M5Stack |
+| [ggwave](third_party/ggwave/LICENSE) | MIT | © 2022 Georgi Gerganov |
 | [tl::expected](components/tl_expected/expected/COPYING) | CC0 1.0 (public domain) | Sy Brand |
 | ESP-IDF managed_components (`espressif/*`) | Apache-2.0 | © Espressif Systems |
 

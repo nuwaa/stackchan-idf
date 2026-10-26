@@ -1,0 +1,4 @@
+ggwave-arduino 0.1.10; https://github.com/ggerganov/ggwave-arduino; commit 2e13b3cf515166317a29bbb7643042ce78650e22
+
+Local change: one diagnostic printf casts its byte count to unsigned long so
+ESP-IDF's -Werror=format build remains portable when size_t is 32-bit.
