@@ -1,0 +1,17 @@
+{
+  "name": "ｽﾀｯｸﾁｬﾝ CoreS3 音響リアクション",
+  "version": "v0.15.0-alpha.6",
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "../v0.15.0-alpha.6/cores3/bootloader.bin", "offset": 0 },
+        { "path": "../v0.15.0-alpha.6/cores3/partition-table.bin", "offset": 32768 },
+        { "path": "../v0.15.0-alpha.6/cores3/bootctl.bin", "offset": 53248 },
+        { "path": "../v0.15.0-alpha.6/cores3/recovery.bin", "offset": 65536 },
+        { "path": "../v0.15.0-alpha.6/cores3/exttab.bin", "offset": 1638400 },
+        { "path": "../v0.15.0-alpha.6/cores3/stackchan_idf.bin", "offset": 1703936 }
+      ]
+    }
+  ]
+}

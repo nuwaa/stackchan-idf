@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b6b62">
+  <meta name="description" content="PC版ChromeまたはEdgeから、CoreS3のｽﾀｯｸﾁｬﾝに音響リアクションファームウェアを書き込みます。">
+  <title>ｽﾀｯｸﾁｬﾝ音響リアクションをインストール</title>
+  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+    body { margin: 0; background: #071b20; color: #eefaf8; line-height: 1.65; }
+    main { max-width: 720px; margin: 0 auto; padding: 36px 20px 56px; }
+    .eyebrow { color: #69ddd0; font-weight: 700; letter-spacing: .08em; font-size: .8rem; }
+    h1 { font-size: clamp(1.8rem, 5vw, 2.7rem); line-height: 1.2; margin: .4rem 0 1rem; }
+    h2 { margin-top: 0; font-size: 1.25rem; }
+    .lead { color: #b9d4d1; font-size: 1.05rem; }
+    section { background: #102a2f; border: 1px solid #285158; border-radius: 16px; padding: 22px; margin-top: 20px; }
+    .warning { border-left: 4px solid #f0b44d; padding-left: 12px; color: #ffe0a8; }
+    label { display: block; margin: 12px 0; cursor: pointer; }
+    input { width: 1.15rem; height: 1.15rem; vertical-align: -.18rem; }
+    #installer { margin-top: 20px; }
+    #status { color: #9fc2bf; }
+    a { color: #69ddd0; }
+    code { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">STACK-CHAN / M5STACK CORES3</div>
+  <h1>ｽﾀｯｸﾁｬﾝ音響リアクションをインストール</h1>
+  <p class="lead">USBで接続したｽﾀｯｸﾁｬﾝへ、ggwave音響受信・オフラインリアクション対応ファームウェアをブラウザーから書き込みます。</p>
+
+  <section>
+    <h2>準備</h2>
+    <ol>
+      <li>Windows、macOS、LinuxのPC版ChromeまたはEdgeでこのページを開きます。</li>
+      <li>USBデータケーブルでCoreS3を接続し、シリアルモニターを閉じます。</li>
+      <li>下の2項目を確認し、表示されるINSTALLボタンを押します。</li>
+    </ol>
+    <p class="warning"><strong>ATOM S3R用ではありません。</strong>M5Stack CoreS3 + ｽﾀｯｸﾁｬﾝベース専用です。他の端末には書き込まないでください。</p>
+    <label><input id="confirm-board" type="checkbox"> 接続した端末はCoreS3のｽﾀｯｸﾁｬﾝです。</label>
+    <label><input id="confirm-flash" type="checkbox"> 現在のファームウェアが上書きされることを了承します。</label>
+    <p id="status" role="status"></p>
+    <div id="installer" hidden>
+      <esp-web-install-button manifest="./firmware/stackchan-acoustic/manifest.json"></esp-web-install-button>
+    </div>
+  </section>
+
+  <section>
+    <h2>書き込み後</h2>
+    <p>自動で再起動します。以前の設定は保持されます。初めて使う場合は本体の設定画面で「音響リアクション」モードを選び、保存後に再起動してください。</p>
+    <p><a href="https://github.com/nuwaa/stackchan-idf/releases/tag/v0.15.0-alpha.6">v0.15.0-alpha.6 リリースとダウンロード</a></p>
+  </section>
+</main>
+<script>
+  const board = document.getElementById('confirm-board');
+  const flash = document.getElementById('confirm-flash');
+  const installer = document.getElementById('installer');
+  const status = document.getElementById('status');
+  function update() {
+    const supported = window.isSecureContext && 'serial' in navigator;
+    installer.hidden = !supported || !board.checked || !flash.checked;
+    status.textContent = !supported
+      ? 'Web Serialを利用できません。HTTPSの公開ページをPC版ChromeまたはEdgeで開いてください。'
+      : installer.hidden ? '端末と上書き操作を確認するとINSTALLボタンが表示されます。'
+      : 'INSTALLを押し、USB一覧からCoreS3を選んでください。';
+  }
+  board.addEventListener('change', update);
+  flash.addEventListener('change', update);
+  update();
+</script>
+</body>
+</html>

@@ -77,7 +77,13 @@ class FakeGh:
         self.downloaded.append((tag, asset))
         dest.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(dest / asset, "w") as z:
-            z.writestr("stackchan_idf.bin", f"{tag}:{asset}".encode())
+            app = f"{tag}:{asset}".encode()
+            z.writestr("bootloader.bin", b"boot:" + app)
+            z.writestr("stackchan_idf.bin", app)
+            z.writestr("flash_manifest.json", json.dumps({"parts": [
+                {"name": "bootloader.bin", "address": "0x0"},
+                {"name": "stackchan_idf.bin", "address": "0x1a0000"},
+            ]}))
 
 
 def _rel(prerelease: bool, *boards: str, tag: str = "") -> dict:
@@ -143,6 +149,8 @@ class StageTest(unittest.TestCase):
             # OTA 用 app イメージが取り出されている
             self.assertEqual((site / "firmware/v0.15.0-alpha.1/atoms3r/stackchan_idf.bin").read_bytes(),
                              b"v0.15.0-alpha.1:firmware-v0.15.0-alpha.1-atoms3r.zip")
+            self.assertEqual((site / "firmware/v0.15.0-alpha.1/cores3/bootloader.bin").read_bytes(),
+                             b"boot:v0.15.0-alpha.1:firmware-v0.15.0-alpha.1-cores3.zip")
             self.assertTrue((site / "firmware/v0.7.0/cores3/stackchan_idf.bin").exists())
             self.assertFalse((site / "firmware/v0.6.0").exists())
             self.assertEqual(len(gh.downloaded), 4 + 2 + 1)

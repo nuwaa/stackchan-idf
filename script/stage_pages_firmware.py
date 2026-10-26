@@ -6,7 +6,7 @@
 pages.yml から呼ばれる (以前は bash + jq のループだった)。出力:
 
     <site>/firmware/<tag>/firmware-<tag>-<board>.zip        Web Flasher / BLE OTA が読む ZIP
-    <site>/firmware/<tag>/<board>/stackchan_idf.bin         機体の release-fetch OTA が読む app 単体
+    <site>/firmware/<tag>/<board>/*.bin                      Web Installer / OTA が読む個別 image
     <site>/versions.json         stable だけ (配布済み機体の /api/release/versions が読む。
                                  先頭 = 最新として既定選択されるので、ここに pre-release は混ぜない)
     <site>/versions-all.json     全チャンネル + channel / prerelease / published_at
@@ -134,17 +134,34 @@ def stage(gh: GhClient, site: Path, floor: str = RETAIN_FLOOR, download: bool = 
             if not download:
                 continue
             gh.download(r.tag, asset, dest)
-            # OTA 用に app イメージだけ取り出す (結合イメージ firmware-<tag>-<board>.bin ではない)。
-            # 無い ZIP (release-fetch 対応前) は黙って飛ばす。
+            # OTA 用 app と Web Installer 用の個別 image を取り出す。
+            # flash_manifest.json が無い旧 ZIP は app だけにフォールバック。
+            extracted: list[str] = []
             try:
                 with zipfile.ZipFile(dest / asset) as z:
-                    data = z.read("stackchan_idf.bin")
-            except (KeyError, zipfile.BadZipFile):
-                data = b""
-            if data:
-                (dest / board).mkdir(parents=True, exist_ok=True)
-                (dest / board / "stackchan_idf.bin").write_bytes(data)
-                print(f"[ok] {r.tag}/{board}/stackchan_idf.bin ({len(data)} bytes)")
+                    try:
+                        manifest = json.loads(z.read("flash_manifest.json"))
+                        names = [p["name"] for p in manifest.get("parts", [])]
+                    except KeyError:
+                        names = ["stackchan_idf.bin"]
+                    board_dir = dest / board
+                    for name in names:
+                        # Release manifests contain flat basenames only. Keep that
+                        # invariant here so a malformed ZIP cannot escape board_dir.
+                        if Path(name).name != name:
+                            raise ValueError(f"unsafe firmware part name: {name}")
+                        try:
+                            data = z.read(name)
+                        except KeyError:
+                            continue
+                        board_dir.mkdir(parents=True, exist_ok=True)
+                        (board_dir / name).write_bytes(data)
+                        extracted.append(name)
+                        print(f"[ok] {r.tag}/{board}/{name} ({len(data)} bytes)")
+            except zipfile.BadZipFile:
+                pass
+            if "stackchan_idf.bin" not in extracted:
+                print(f"[warn] {r.tag}/{board}: stackchan_idf.bin not found", file=sys.stderr)
             print(f"[ok] {r.tag}/{board} -> {dest / asset}")
         entries.append({
             "tag": r.tag,
