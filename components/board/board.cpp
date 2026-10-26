@@ -240,11 +240,17 @@ BoardProfile profile_for(BoardKind kind) noexcept
     BoardProfile p{};
     switch (kind) {
     case BoardKind::M5Base:
+        // CoreS3's M5Unified default is 4. Give the internal speaker a
+        // moderate +3.5 dB lift while leaving enough margin to avoid the
+        // much harsher clipping observed at the Module Audio setting (8).
+        p.speaker_magnification = 6;
         p.has_servo_bus = true;
         p.has_camera = true; // GC0308 on the CoreS3 mainboard
         p.has_proximity = true; // LTR-553 on the CoreS3 mainboard
         break;
     case BoardKind::TakaoBase:
+        // Takao Base uses the same CoreS3 internal speaker path.
+        p.speaker_magnification = 6;
         p.has_servo_bus = true;
         p.has_proximity = true;
         // CoreS3 SE (the usual Takao host) has no camera; keep it off until

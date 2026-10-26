@@ -15,7 +15,7 @@ tools/settings_common.js の CHANNELS はこのミラー — 段階を足すと�
 CI (release.yml / pages.yml) からは CLI として呼ぶ:
 
     release_channels.py --tag v0.15.0-alpha.1 channel   → alpha
-    release_channels.py --tag v0.15.0-alpha.1 boards    → ["cores3","atoms3r"]  (JSON、matrix 用)
+    release_channels.py --tag v0.15.0-alpha.1 boards    → ["cores3"]  (JSON、matrix 用)
     release_channels.py --tag v0.15.0-alpha.1 validate  → 正しい形式なら 0、違えば 1
 """
 from __future__ import annotations
@@ -30,11 +30,11 @@ from typing import Optional
 # 包含順 (利用者が選ぶ「どこまで見せるか」)。stable は必ず最後。
 CHANNELS: list[str] = ["alpha", "beta", "rc", "stable"]
 
-# チャンネルごとにビルド / 配布するボード。alpha は手元で検証できる 2 ボードだけ
-# (2026-09-24 決定)。beta / rc は正式版と同じ 4 ボード。
+# チャンネルごとにビルド / 配布するボード。alpha は CoreS3 実機で
+# 検証する開発版に限定。beta / rc は正式版と同じ 4 ボード。
 ALL_BOARDS: list[str] = ["cores3", "atoms3r", "atoms3", "stopwatch"]
 BOARDS_BY_CHANNEL: dict[str, list[str]] = {
-    "alpha": ["cores3", "atoms3r"],
+    "alpha": ["cores3"],
     "beta": ALL_BOARDS,
     "rc": ALL_BOARDS,
     "stable": ALL_BOARDS,

@@ -6,9 +6,11 @@ SPDX-License-Identifier: BSL-1.0
 # ADR-002: リリース チャンネル (alpha / beta / rc / stable)
 
 2026-09-24 決定・実装。「アルファ リリースと正式リリースを分け、将来ベータ / RC など段階を
-増やせるようにする」。決定事項: alpha は CoreS3 / AtomS3R のみ、`versions.json` は stable 限定、
+増やせるようにする」。決定事項: alpha は CoreS3 のみ、`versions.json` は stable 限定、
 Pages のプレリリース保持は「進行中のもののみ」、段階名は alpha / beta / rc。
 実装の正本は `script/release_channels.py` (CI) と `tools/settings_common.js` (ページ)。
+後日、8 MB版が多言語・絵文字追加後のアプリサイズを収容できなくなったため、
+alpha の対象は CoreS3 だけに変更した。
 
 ## 1. 現状の配布経路 (変更対象の棚卸し)
 
@@ -164,7 +166,7 @@ Pages 容量 (1 GB) を守るため:
 
 ## 5. 決定済みの論点 (2026-09-24)
 
-- **alpha の対象ボード**: 4 ボード全部ビルドする (現状の matrix のまま) で良いか。CI 時間は変わらない
+- **alpha の対象ボード**: CoreS3 のみ。その他のボードは beta / rc / stable で配布する。
 - **`versions.json` を stable 限定に固定する案 (§2.4)** で良いか。代案は `versions.json` に
   `channel` を足して全部入れる (旧機体の既定選択が alpha になりうるので非推奨)
 - **Pages のプレリリース保持ルール (§2.5)** で良いか。代案は「最新 N 件」

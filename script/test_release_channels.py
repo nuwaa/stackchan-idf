@@ -42,7 +42,7 @@ class ParseTagTest(unittest.TestCase):
         self.assertEqual(rc.visible_channels("bogus"), ["stable"])
 
     def test_boards(self):
-        self.assertEqual(rc.BOARDS_BY_CHANNEL["alpha"], ["cores3", "atoms3r"])
+        self.assertEqual(rc.BOARDS_BY_CHANNEL["alpha"], ["cores3"])
         self.assertEqual(rc.BOARDS_BY_CHANNEL["stable"], rc.ALL_BOARDS)
         self.assertEqual(rc.CHANNELS[-1], "stable")
 
@@ -54,7 +54,7 @@ class ParseTagTest(unittest.TestCase):
             self.assertEqual(rc.main(["--tag", "v0.15.0-alpha.1", "boards"]), 0)
             self.assertEqual(rc.main(["--tag", "v0.15.0-alpha.1", "channel"]), 0)
             self.assertEqual(rc.main(["--tag", "v0.15.0", "prerelease"]), 0)
-        self.assertEqual(out.getvalue().split("\n")[:3], ['["cores3", "atoms3r"]', "alpha", "false"])
+        self.assertEqual(out.getvalue().split("\n")[:3], ['["cores3"]', "alpha", "false"])
         self.assertEqual(rc.main(["--tag", "v0.15.0", "validate"]), 0)
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(rc.main(["--tag", "v0.15.0-alpha1", "validate"]), 1)

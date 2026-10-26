@@ -7,7 +7,7 @@ name: Build and Release Firmware
 # Layout (2026-06 onwards):
 #   0. `plan` job derives the version / release channel / board list from
 #      the tag (script/release_channels.py). Channels (2026-09):
-#        vX.Y.Z-alpha.N → alpha  (cores3 + atoms3r only, GitHub pre-release)
+#        vX.Y.Z-alpha.N → alpha  (cores3 only, GitHub pre-release)
 #        vX.Y.Z-beta.N  → beta   (all boards, pre-release)
 #        vX.Y.Z-rc.N    → rc     (all boards, pre-release)
 #        vX.Y.Z         → stable (all boards, becomes "Latest")
@@ -272,7 +272,7 @@ jobs:
       - name: Create / update Release
         uses: softprops/action-gh-release@v2
         with:
-          # Whatever boards this channel built (alpha = 2, others = 4).
+          # Whatever boards this channel built (alpha = 1, others = 4).
           files: firmware-${{ steps.version.outputs.version }}-*.zip
           fail_on_unmatched_files: true
           # Pre-release tags never become "Latest": the Releases page, the
